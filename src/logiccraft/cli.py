@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .equiv import equivalent
 
 import argparse
 from pathlib import Path
@@ -33,6 +34,28 @@ def cmd_from_file(path: str, do_minimize: bool) -> int:
         return cmd_minimize(text)
     return cmd_truth_table(text)
 
+def cmd_equiv(expr1: str, expr2: str) -> int:
+    name1, ast1 = parse(expr1)
+    name2, ast2 = parse(expr2)
+
+    res = equivalent(ast1, ast2)
+
+    if res.equivalent:
+        print("Equivalent ✅")
+        if res.var_order:
+            print("Vars:", ", ".join(res.var_order))
+        return 0
+
+    print("Not equivalent ❌")
+    print("Vars:", ", ".join(res.var_order))
+    ce = res.counterexample or {}
+    print("Counterexample:")
+    for k in res.var_order:
+        print(f"  {k} = {ce.get(k)}")
+    print(f"{name1} = {res.lhs_out}")
+    print(f"{name2} = {res.rhs_out}")
+    return 1
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="logiccraft")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -58,7 +81,14 @@ def main() -> int:
         return cmd_from_file(args.path, do_minimize=False)
     if args.cmd == "minimize-file":
         return cmd_from_file(args.path, do_minimize=True)
-    raise SystemExit(2)
+    
+    if args.cmd == "equiv":
+        return cmd_equiv(args.expr1, args.expr2)
 
+    eq = sub.add_parser("equiv", help="Check if two boolean expressions are equivalent")
+    eq.add_argument("expr1", help="First expression or assignment")
+    eq.add_argument("expr2", help="Second expression or assignment")
+    raise SystemExit(2)
+    
 if __name__ == "__main__":
     raise SystemExit(main())
